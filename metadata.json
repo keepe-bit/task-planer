@@ -1,0 +1,6 @@
+{
+  "name": "TaskPlaner Enterprise",
+  "description": "Сервер управления заявками и задачами с автосчетчиком (номер/месяц-год), строгим журналом аудита, безопасным хэшированием паролей (OWASP PBKDF2), ролевым доступом и CLI администрированием на Python.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
