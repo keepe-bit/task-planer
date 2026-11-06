@@ -54,9 +54,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onSuccess }) => {
         </div>
 
         {error && (
-          <div className="mb-5 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div className="leading-tight">{error}</div>
+          <div className="mb-5 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs space-y-1.5">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="leading-tight font-medium">{error}</div>
+            </div>
+            {(error.includes('5050') || error.includes('соединения') || error.includes('ECONNREFUSED')) && (
+              <div className="pt-2 border-t border-rose-200/60 dark:border-rose-900/40 text-[11px] text-zinc-600 dark:text-zinc-300">
+                <span className="font-semibold block text-zinc-900 dark:text-zinc-100 mb-1">Как исправить:</span>
+                Откройте второе окно PowerShell в папке проекта и выполните команду запуска Python REST API:
+                <div className="mt-1 p-2 rounded bg-zinc-900 text-zinc-100 font-mono text-[11px] select-all">
+                  python backend/server.py 5050
+                </div>
+              </div>
+            )}
           </div>
         )}
 

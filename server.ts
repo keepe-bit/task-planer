@@ -11,25 +11,54 @@ const PORT = 3000;
 const PYTHON_PORT = 5050;
 let pythonProcess: ChildProcess | null = null;
 
+import fs from 'node:fs';
+
 function findPythonBinary(): string {
   if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
 
   const isWin = process.platform === 'win32';
-  // On Windows, 'python' or 'py' is standard; on Linux/macOS, 'python3' is standard
-  const candidates = isWin ? ['python', 'py', 'python3'] : ['python3', 'python'];
+  const candidates: string[] = [];
+
+  if (isWin) {
+    // 1. Python launcher for Windows (installed by python.org installer into C:\Windows\py.exe)
+    candidates.push('py');
+    // 2. Direct paths in LocalAppData (standard default Python Windows user install location)
+    const localApp = process.env.LOCALAPPDATA || '';
+    if (localApp) {
+      for (const ver of ['Python313', 'Python312', 'Python311', 'Python310']) {
+        const p = path.join(localApp, 'Programs', 'Python', ver, 'python.exe');
+        if (fs.existsSync(p)) candidates.push(p);
+      }
+    }
+    // 3. System drive installations
+    for (const ver of ['Python313', 'Python312', 'Python311', 'Python310']) {
+      const p = `C:\\${ver}\\python.exe`;
+      if (fs.existsSync(p)) candidates.push(p);
+    }
+    // 4. Global Program Files
+    const progFiles = process.env.ProgramFiles || 'C:\\Program Files';
+    for (const ver of ['Python313', 'Python312', 'Python311', 'Python310']) {
+      const p = path.join(progFiles, ver, 'python.exe');
+      if (fs.existsSync(p)) candidates.push(p);
+    }
+    candidates.push('python');
+    candidates.push('python3');
+  } else {
+    candidates.push('python3', 'python');
+  }
 
   for (const cmd of candidates) {
     try {
       const res = spawnSync(cmd, ['-c', 'import sys; print(sys.version_info[0])'], {
         encoding: 'utf-8',
         shell: isWin,
-        timeout: 2000,
+        timeout: 2500,
       });
       if (res.status === 0 && res.stdout && res.stdout.trim() === '3') {
         return cmd;
       }
     } catch {
-      // Continue to next candidate
+      // Continue searching
     }
   }
 
@@ -68,13 +97,16 @@ function ensurePythonBackend(): Promise<void> {
       });
 
       pythonProcess.on('error', (err) => {
-        console.error('[Server] Failed to spawn Python backend:', err.message);
-        console.error('[Server] Make sure Python 3.10+ is installed and added to PATH (https://www.python.org/downloads/).');
+        console.error('[Server] Failed to spawn Python backend automatically:', err.message);
+        console.error('[Server] Решение: запустите Python-сервер вручную в отдельном окне PowerShell:');
+        console.error('[Server] > python backend/server.py 5050');
       });
 
       pythonProcess.on('exit', (code) => {
         if (code !== 0 && code !== null) {
           console.error(`[Server] Python backend process exited with code ${code}.`);
+          console.error('[Server] Если Python не установлен или не в PATH, запустите вручную:');
+          console.error('[Server] > python backend/server.py 5050 (или py backend/server.py 5050)');
         }
       });
 
@@ -85,7 +117,7 @@ function ensurePythonBackend(): Promise<void> {
         const checkReq = http.get(`http://127.0.0.1:${PYTHON_PORT}/api/health`, (res) => {
           if (res.statusCode === 200) {
             clearInterval(interval);
-            console.log('[Server] Python backend confirmed online.');
+            console.log('[Server] Python backend confirmed online on port', PYTHON_PORT);
             onReady();
           }
         });
@@ -93,6 +125,8 @@ function ensurePythonBackend(): Promise<void> {
         if (attempts > 30) {
           clearInterval(interval);
           console.warn('[Server] Python backend check timed out; continuing anyway.');
+          console.warn('[Server] Если API не отвечает, откройте второй терминал и запустите:');
+          console.warn('[Server] > python backend/server.py 5050');
           onReady();
         }
       }, 250);
