@@ -89,6 +89,54 @@ class ApiRequestHandler(BaseHTTPRequestHandler):
         path = parsed_url.path
         query = urllib.parse.parse_qs(parsed_url.query)
 
+        # / (Root API endpoint info & web redirect)
+        if path in ("/", ""):
+            if "application/json" in self.headers.get("Accept", ""):
+                self.send_json(200, {
+                    "service": "TaskPlaner Python REST Server",
+                    "status": "online",
+                    "web_url": "http://localhost:3000",
+                    "api_endpoints": ["/api/health", "/api/tasks", "/api/users", "/api/audit"]
+                })
+            else:
+                html = """<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskPlaner API Server</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #09090b; color: #f4f4f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 16px; }
+    .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 28px; max-width: 520px; width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    h1 { font-size: 20px; font-weight: 700; margin: 0 0 8px 0; color: #fff; }
+    p { font-size: 14px; color: #a1a1aa; line-height: 1.5; margin: 0 0 16px 0; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 20px; background: #4f46e5; color: #fff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; transition: background 0.2s; box-sizing: border-box; }
+    .btn:hover { background: #4338ca; }
+    .info { margin-top: 20px; padding-top: 16px; border-top: 1px solid #27272a; font-size: 12px; color: #71717a; }
+    code { font-family: monospace; background: #27272a; padding: 2px 6px; border-radius: 4px; color: #e4e4e7; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🚀 TaskPlaner Python REST Server запущен</h1>
+    <p>Вы открыли порт внутреннего API сервера (<code>5050</code>). Пользовательский интерфейс TaskPlaner работает на порту <strong>3000</strong>.</p>
+    <a class="btn" href="http://localhost:3000">Открыть веб-интерфейс (http://localhost:3000) →</a>
+    <div class="info">
+      <div>Служебный endpoint проверки: <a href="/api/health" style="color:#818cf8">/api/health</a></div>
+      <div>Статус: <code>active / online</code></div>
+    </div>
+  </div>
+</body>
+</html>"""
+                payload = html.encode("utf-8")
+                self.send_response(200)
+                self.send_cors_headers()
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+            return
+
         # /api/health
         if path == "/api/health":
             self.send_json(200, {"status": "ok", "service": "task-planer-python"})

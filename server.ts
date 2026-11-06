@@ -1,6 +1,6 @@
 import express from 'express';
 import http from 'node:http';
-import { spawn, ChildProcess } from 'node:child_process';
+import { spawn, spawnSync, ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +10,31 @@ const __dirname = path.dirname(__filename);
 const PORT = 3000;
 const PYTHON_PORT = 5050;
 let pythonProcess: ChildProcess | null = null;
+
+function findPythonBinary(): string {
+  if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
+
+  const isWin = process.platform === 'win32';
+  // On Windows, 'python' or 'py' is standard; on Linux/macOS, 'python3' is standard
+  const candidates = isWin ? ['python', 'py', 'python3'] : ['python3', 'python'];
+
+  for (const cmd of candidates) {
+    try {
+      const res = spawnSync(cmd, ['-c', 'import sys; print(sys.version_info[0])'], {
+        encoding: 'utf-8',
+        shell: isWin,
+        timeout: 2000,
+      });
+      if (res.status === 0 && res.stdout && res.stdout.trim() === '3') {
+        return cmd;
+      }
+    } catch {
+      // Continue to next candidate
+    }
+  }
+
+  return isWin ? 'python' : 'python3';
+}
 
 function ensurePythonBackend(): Promise<void> {
   return new Promise((resolve) => {
@@ -33,14 +58,24 @@ function ensurePythonBackend(): Promise<void> {
     });
 
     function startProcess(onReady: () => void) {
-      console.log('[Server] Spawning Python REST backend on port', PYTHON_PORT);
-      pythonProcess = spawn('python3', ['backend/server.py', String(PYTHON_PORT)], {
+      const pyCmd = findPythonBinary();
+      console.log(`[Server] Spawning Python REST backend using '${pyCmd}' on port ${PYTHON_PORT}`);
+
+      pythonProcess = spawn(pyCmd, ['backend/server.py', String(PYTHON_PORT)], {
         cwd: __dirname,
         stdio: 'inherit',
+        shell: process.platform === 'win32',
       });
 
       pythonProcess.on('error', (err) => {
-        console.error('[Server] Failed to spawn Python backend:', err);
+        console.error('[Server] Failed to spawn Python backend:', err.message);
+        console.error('[Server] Make sure Python 3.10+ is installed and added to PATH (https://www.python.org/downloads/).');
+      });
+
+      pythonProcess.on('exit', (code) => {
+        if (code !== 0 && code !== null) {
+          console.error(`[Server] Python backend process exited with code ${code}.`);
+        }
       });
 
       // Poll until ready
@@ -60,7 +95,7 @@ function ensurePythonBackend(): Promise<void> {
           console.warn('[Server] Python backend check timed out; continuing anyway.');
           onReady();
         }
-      }, 200);
+      }, 250);
     }
   });
 }
