@@ -25,8 +25,8 @@
 ## 2. Команда, чтобы скачать репозиторий
 
 ```bash
-git clone https://github.com/your-username/task-planer-enterprise.git
-cd task-planer-enterprise
+git clone https://github.com/keepe-bit/task-planer
+cd task-planer
 ```
 
 ---
